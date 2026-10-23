@@ -7,11 +7,6 @@ import com.tencent.common.app.AppInterface
 import com.tencent.qphone.base.remote.FromServiceMsg
 import com.tencent.qphone.base.remote.ToServiceMsg
 import moe.ono.hooks.base.util.Toasts
-import moe.ono.reflex.getFields
-import moe.ono.reflex.getMethods
-import moe.ono.service.inject.ServletPool
-import moe.ono.service.inject.ServletPool.getServlet
-import moe.ono.service.inject.ServletPool.iServlet
 import moe.ono.service.inject.servlets.IServlet
 import moe.ono.util.FunProtoData
 import moe.ono.util.FunProtoData.getUnpPackage
@@ -25,9 +20,20 @@ import java.util.concurrent.atomic.AtomicInteger
 
 abstract class QQInterfaces {
     companion object {
-        lateinit var mRealHandlerReq: Method
-        lateinit var mHandlerResponse: Method
-        lateinit var mqqService: Any
+        private data class ServiceBinding(
+            val service: Any,
+            val request: Method,
+            val response: Method,
+        )
+
+        @Volatile
+        private var serviceBinding: ServiceBinding? = null
+
+        private fun requireServiceBinding(): ServiceBinding {
+            // A service that was not ready during startup can become ready later.
+            if (serviceBinding == null) update()
+            return checkNotNull(serviceBinding) { "QQ 服务尚未初始化" }
+        }
 
         val seqReceiveMap = ConcurrentHashMap<Int, FromServiceMsg>()
         private val seqFactory = AtomicInteger(0)
@@ -92,19 +98,21 @@ abstract class QQInterfaces {
         }
 
         private fun sendReq(toServiceMsg: ToServiceMsg) {
+            val binding = requireServiceBinding()
             // qq <= 8.9.8
             toServiceMsg.extraData.putBoolean("req_pb_protocol_flag", true)
             // qq >= 8.9.10
             toServiceMsg.attributes["req_pb_protocol_flag"] = true
-            if (mRealHandlerReq.parameterTypes.size == 2) {
-                MethodHandleUtil.invokeSpecial<Unit>(mqqService, mRealHandlerReq, toServiceMsg, IServlet::class.java)
+            if (binding.request.parameterTypes.size == 2) {
+                MethodHandleUtil.invokeSpecial<Unit>(binding.service, binding.request, toServiceMsg, IServlet::class.java)
             } else {
-                MethodHandleUtil.invokeSpecial<Unit>(mqqService, mRealHandlerReq, toServiceMsg, null, IServlet::class.java)
+                MethodHandleUtil.invokeSpecial<Unit>(binding.service, binding.request, toServiceMsg, null, IServlet::class.java)
             }
         }
 
         private fun decodeResponse(toServiceMsg: ToServiceMsg, fromServiceMsg: FromServiceMsg) {
-            MethodHandleUtil.invokeSpecial<Unit>(mqqService, mHandlerResponse, fromServiceMsg.isSuccess, toServiceMsg, fromServiceMsg, null)
+            val binding = requireServiceBinding()
+            MethodHandleUtil.invokeSpecial<Unit>(binding.service, binding.response, fromServiceMsg.isSuccess, toServiceMsg, fromServiceMsg, null)
         }
 
         fun receive(seq: Int): JSONObject? {
@@ -126,60 +134,33 @@ abstract class QQInterfaces {
             return null
         }
 
+        @Synchronized
         fun update(){
+            // Do not reuse a previous account's service if rebinding fails.
+            serviceBinding = null
             app = (if (PlatformUtils.isMqqPackage())
                 MobileQQ.getMobileQQ().waitAppRuntime()
             else
                 MobileQQ.getMobileQQ().waitAppRuntime(null)) as AppInterface
 
-            val cBaseService = load("com.tencent.mobileqq.service.MobileQQServiceBase")!!
-            cBaseService.getMethods(false).forEach {
-                if (it.returnType == Void.TYPE && it.isPublic) {
-                    val paramTypes = it.parameterTypes
-                    if (paramTypes.size >= 2
-                        && paramTypes.first() == ToServiceMsg::class.java
-                        && paramTypes.last() == Class::class.java) {
-                        mRealHandlerReq = it
-                        Logger.d(it.toString())
-                    }
-                }
-            }
-            cBaseService.getMethods(false).forEach {
-                if (it.returnType == Void.TYPE && it.isPublic && it.paramCount == 4) {
-                    val paramTypes = it.parameterTypes
-                    if (paramTypes[0] == Boolean::class.java
-                        && paramTypes[1] == ToServiceMsg::class.java
-                        && paramTypes[2] == FromServiceMsg::class.java) {
-                        mHandlerResponse = it
-                        Logger.d(it.toString())
-                    }
-                }
-            }
-            app.getFields(false).forEach {
-                if (cBaseService.isAssignableFrom(it.type)) {
-                    Logger.d(it.name)
-                    it.isAccessible = true
-                    mqqService = it.get(app)!!
-                }
-            }
-
-            if (!this::mRealHandlerReq.isInitialized) {
-                throw RuntimeException("初始化失败 -> mRealHandlerReq")
-            }
-            if (!this::mHandlerResponse.isInitialized) {
-                throw RuntimeException("初始化失败 -> mHandlerResponse")
-            }
-            if (!this::mqqService.isInitialized) { // 9.2.70 修复
-                app.getMethods(false).forEach {
-                    if (it.returnType == cBaseService && it.isPublic
-                        && it.name == "getMobileQQService" && it.paramCount == 0) {
-                        Logger.d(it.toString())
-                        it.isAccessible = true
-                        mqqService = it.invoke(app)!!
-                    }
-                }
-            }
-
+            val cBaseService = checkNotNull(load("com.tencent.mobileqq.service.MobileQQServiceBase"))
+            val request = cBaseService.methods.firstOrNull {
+                val types = it.parameterTypes
+                it.returnType == Void.TYPE && it.isPublic && types.size in 2..3
+                    && types.first() == ToServiceMsg::class.java
+                    && types.last() == Class::class.java
+            } ?: error("初始化失败 -> mRealHandlerReq")
+            val response = cBaseService.methods.firstOrNull {
+                val types = it.parameterTypes
+                it.returnType == Void.TYPE && it.isPublic && it.paramCount == 4
+                    && types[0] == Boolean::class.javaPrimitiveType
+                    && types[1] == ToServiceMsg::class.java
+                    && types[2] == FromServiceMsg::class.java
+                    && types[3] == Exception::class.java
+            } ?: error("初始化失败 -> mHandlerResponse")
+            val service = MobileQQServiceResolver.resolve(app, cBaseService)
+            serviceBinding = ServiceBinding(service, request, response)
+            Logger.d("QQ service initialized: ${service.javaClass.name}")
         }
     }
 

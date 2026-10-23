@@ -1,6 +1,5 @@
 package moe.ono.hooks.base.api
 
-import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import de.robv.android.xposed.XC_MethodHook
@@ -11,7 +10,6 @@ import moe.ono.hooks._base.ApiHookItem
 import moe.ono.hooks._core.annotation.HookItem
 import moe.ono.reflex.ClassUtils
 import moe.ono.reflex.FieldUtils
-import moe.ono.reflex.Ignore
 import moe.ono.reflex.MethodUtils
 import moe.ono.util.HostInfo
 
@@ -61,8 +59,10 @@ class QQMsgViewAdapter : ApiHookItem() {
         }
         val onMsgViewUpdate =
             MethodUtils.create("com.tencent.mobileqq.aio.msglist.holder.AIOBubbleMsgItemVB")
+                // QQ 9.3.75 dispatches updates through MviUIState rather than the
+                // former (int, item, List, Bundle) signature.
+                .methodName("handleUIState")
                 .returnType(Void.TYPE)
-                .params(Int::class.java, Ignore::class.java, List::class.java, Bundle::class.java)
                 .first()
         unhook = hookAfter(onMsgViewUpdate) { param ->
             val thisObject = param.thisObject

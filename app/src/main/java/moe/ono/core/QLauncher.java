@@ -140,8 +140,12 @@ public class QLauncher {
                 Parasitics.injectModuleResources(ctx.getResources());
                 Parasitics.injectModuleResources(CacheConfig.getSplashActivity().getResources());
                 Parasitics.initForStubActivity(ctx);
-                ServletPool.INSTANCE.injectServlet();
-                QQInterfaces.Companion.update();
+                try {
+                    ServletPool.INSTANCE.injectServlet();
+                    QQInterfaces.Companion.update();
+                } catch (Exception | LinkageError e) {
+                    Logger.e("QQ 服务初始化失败，发包功能将在使用时重试", e);
+                }
             });
         }
     }

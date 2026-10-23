@@ -175,6 +175,7 @@ protobuf {
 configurations.configureEach { exclude(group = "androidx.appcompat", module = "appcompat") }
 
 dependencies {
+    testImplementation(libs.junit)
     implementation(libs.core.ktx)
     implementation(libs.appcompat)
     implementation(libs.material)
