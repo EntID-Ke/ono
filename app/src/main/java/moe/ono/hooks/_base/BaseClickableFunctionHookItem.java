@@ -34,7 +34,8 @@ public abstract class BaseClickableFunctionHookItem extends BaseHookItem {
 
 
     public boolean isEnabled() {
-        return enabled;
+        return io.github.qqmodulemanager.bridge.BridgeClient.effective(
+                io.github.qqmodulemanager.bridge.BridgeClient.featureForClass(getClass().getName()), enabled);
     }
 
     public void setEnabled(boolean enabled) {

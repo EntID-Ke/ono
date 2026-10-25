@@ -45,8 +45,10 @@ public class QLauncher {
     public void init(@NonNull ClassLoader cl, @NonNull ApplicationInfo ai, @NonNull String modulePath, Context context) {
         Initiator.init(context.getClassLoader());
 
+        moe.ono.integration.QQModuleManagerAdapter.register(context);
         HookItemLoader hookItemLoader = new HookItemLoader();
         hookItemLoader.loadHookItem(SyncUtils.getProcessType());
+        io.github.qqmodulemanager.bridge.BridgeClient.ready();
 
 
 

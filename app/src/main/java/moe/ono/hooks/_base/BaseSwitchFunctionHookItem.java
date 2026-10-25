@@ -33,7 +33,8 @@ public abstract class BaseSwitchFunctionHookItem extends BaseHookItem {
 
 
     public boolean isEnabled() {
-        return enabled;
+        return io.github.qqmodulemanager.bridge.BridgeClient.effective(
+                io.github.qqmodulemanager.bridge.BridgeClient.featureForClass(getClass().getName()), enabled);
     }
 
     public void setEnabled(boolean enabled) {
@@ -47,7 +48,9 @@ public abstract class BaseSwitchFunctionHookItem extends BaseHookItem {
     }
 
     public boolean configIsEnable() {
-        return ConfigManager.getDefaultConfig().getBooleanOrFalse(Constants.PrekXXX+this.getPath());
+        return io.github.qqmodulemanager.bridge.BridgeClient.effective(
+                io.github.qqmodulemanager.bridge.BridgeClient.featureForClass(getClass().getName()),
+                ConfigManager.getDefaultConfig().getBooleanOrFalse(Constants.PrekXXX+this.getPath()));
     }
 
 }

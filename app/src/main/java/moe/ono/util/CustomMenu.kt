@@ -1,5 +1,7 @@
 package moe.ono.util
 
+import io.github.qqmodulemanager.bridge.BridgeClient
+
 import com.github.kyuubiran.ezxhelper.utils.findAllMethods
 import com.github.kyuubiran.ezxhelper.utils.findMethod
 import moe.ono.constants.Constants
@@ -102,7 +104,7 @@ object CustomMenu {
             .load(getOrCreateInjectionClassLoader(absMenuItem.classLoader!!), strategy)
             .loaded
         return menuItemClass.getDeclaredConstructor(msgClass)
-            .newInstance(msg)
+            .newInstance(msg).also { BridgeClient.tagResourceItem(it, "ono", moe.ono.R.id::class.java, id, text) }
     }
 
     /**
@@ -128,7 +130,9 @@ object CustomMenu {
             .make()
             .load(getOrCreateInjectionClassLoader(absMenuItem.classLoader!!), strategy)
             .loaded
-        return menuItemClass.getDeclaredConstructor(msgClass).newInstance(msg)
+        return menuItemClass.getDeclaredConstructor(msgClass).newInstance(msg).also {
+            BridgeClient.tagResourceItem(it, "ono", moe.ono.R.id::class.java, id, text)
+        }
     }
 
     fun checkArrayElementNonNull(array: Array<Any?>?) {

@@ -45,6 +45,7 @@ android {
     }
 
     buildTypes {
+        getByName("debug") { versionNameSuffix = "-qiii2.1" }
         val releaseSigning = signingConfigs.getByName("release")
         val debugSigning = signingConfigs.getByName("debug")
 

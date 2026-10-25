@@ -34,6 +34,8 @@ public abstract class BaseHookItem {
      * 是否加载
      */
     private boolean isLoad = false;
+    private boolean qqmmInitializationSuccessful = false;
+    public final boolean isQQMMInitializationSuccessful() { return qqmmInitializationSuccessful; }
 
     public String getSimpleName() {
         return this.getClass().getSimpleName();
@@ -70,16 +72,22 @@ public abstract class BaseHookItem {
     }
 
     public final void startLoad() {
+        if (io.github.qqmodulemanager.bridge.BridgeClient.deferInitialization(
+                io.github.qqmodulemanager.bridge.BridgeClient.featureForClass(getClass().getName()))) return;
         if (isLoad) {
             return;
         }
         try {
             isLoad = true;
-            initOnce();
+            io.github.qqmodulemanager.bridge.BridgeClient.hooksStarting(
+                    io.github.qqmodulemanager.bridge.BridgeClient.featureForClass(getClass().getName()));
             if (initOnce()) {
                 entry(HybridClassLoader.getHostClassLoader());
             }
+            qqmmInitializationSuccessful = true;
         } catch (Throwable e) {
+            io.github.qqmodulemanager.bridge.BridgeClient.reportFailure(
+                    io.github.qqmodulemanager.bridge.BridgeClient.featureForClass(getClass().getName()), e);
             XposedBridge.log(e);
             ExceptionFactory.add(this, e);
         }

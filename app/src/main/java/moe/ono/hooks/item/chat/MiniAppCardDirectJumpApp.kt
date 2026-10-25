@@ -1,5 +1,7 @@
 package moe.ono.hooks.item.chat
 
+import io.github.qqmodulemanager.bridge.BridgeClient
+
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
@@ -100,6 +102,7 @@ class MiniAppCardDirectJumpApp : BaseClickableFunctionHookItem() {
             })
 
         } catch (e: Exception) {
+            BridgeClient.reportFailure("miniapp_jump",e)
             Logger.e(e)
         }
     }

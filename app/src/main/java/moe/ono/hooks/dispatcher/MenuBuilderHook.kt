@@ -1,5 +1,7 @@
 package moe.ono.hooks.dispatcher
 
+import io.github.qqmodulemanager.bridge.BridgeClient
+
 import de.robv.android.xposed.XC_MethodHook
 import moe.ono.hooks._base.ApiHookItem
 import moe.ono.hooks._core.annotation.HookItem
@@ -15,6 +17,8 @@ import java.lang.reflect.Modifier
 
 @HookItem(path = "API/对应类型消息菜单构建时回调接口")
 class MenuBuilderHook : ApiHookItem() {
+    private val qqmmSupportedTargets=mutableSetOf<String>()
+    fun supportsQQMMTarget(type:String)=type in qqmmSupportedTargets
     private val decorators: Array<OnMenuBuilder> = arrayOf(
         StickerPanelEntry(),
         QQMessageTracker(),
@@ -42,10 +46,15 @@ class MenuBuilderHook : ApiHookItem() {
                     Logger.d(aioMsgItem.toString())
                     for (decorator in decorators) {
                         if (target in decorator.targetTypes) {
-                            decorator.onGetMenu(aioMsgItem, target, param)
+                            try { decorator.onGetMenu(aioMsgItem, target, param) }
+                            catch(e:Throwable) {
+                                BridgeClient.reportFailure(BridgeClient.featureForClass(decorator.javaClass.name),e)
+                                throw e
+                            }
                         }
                     }
                 }
+                qqmmSupportedTargets.add(target)
             } catch (_: NoSuchMethodException) {
 
             } catch (_: ClassNotFoundException) {

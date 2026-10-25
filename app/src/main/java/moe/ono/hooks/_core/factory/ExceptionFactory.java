@@ -41,6 +41,9 @@ public class ExceptionFactory {
     }
 
     public static void add(BaseHookItem item, Throwable throwable) {
+        io.github.qqmodulemanager.bridge.BridgeClient.reportFailure(
+                io.github.qqmodulemanager.bridge.BridgeClient.featureForClass(item.getClass().getName()), throwable);
+        moe.ono.integration.QQModuleManagerAdapter.reportDependencyFailure(item, throwable);
         if (check(item, throwable)) {
             return;
         }

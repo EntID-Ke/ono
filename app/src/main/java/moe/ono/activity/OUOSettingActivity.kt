@@ -1,5 +1,7 @@
 package moe.ono.activity
 
+import io.github.qqmodulemanager.bridge.BridgeClient
+
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.DialogInterface
@@ -360,6 +362,11 @@ open class OUOSettingActivity : BaseActivity() {
                             summary = settingItem.summary
                             icon = settingItem.iconResId?.let { context.getDrawable(it) }
                             isChecked = settingItem.isSwitch
+                            if (BridgeClient.isManaged(
+                                    BridgeClient.featureForClass(settingItem.clazz.javaClass.name))) {
+                                summary = "当前由 QIII管理"
+                                isEnabled = false
+                            }
                             isPersistent = false
                             setOnPreferenceClickListener {
                                 handleItemClick(settingItem, isChecked)
@@ -410,6 +417,11 @@ open class OUOSettingActivity : BaseActivity() {
         }
 
         private fun handleItemClick(settingItem: SettingItem, isChecked: Boolean) {
+            if (BridgeClient.isManaged(
+                    BridgeClient.featureForClass(settingItem.clazz.javaClass.name))) {
+                android.widget.Toast.makeText(requireContext(), "请在 QIII调整此功能", android.widget.Toast.LENGTH_SHORT).show()
+                return
+            }
             ConfigManager.getDefaultConfig().edit().putBoolean("$PrekXXX${settingItem.path}", isChecked).apply()
             val item = getItem(settingItem.clazz::class.java)
             if (item is BaseSwitchFunctionHookItem) {

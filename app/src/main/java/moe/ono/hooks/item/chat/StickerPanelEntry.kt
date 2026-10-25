@@ -1,5 +1,7 @@
 package moe.ono.hooks.item.chat
 
+import io.github.qqmodulemanager.bridge.BridgeClient
+
 import android.annotation.SuppressLint
 import android.text.TextUtils
 import android.view.View
@@ -82,6 +84,7 @@ class StickerPanelEntry : BaseClickableFunctionHookItem(), OnMenuBuilder {
                 val imageView = param.result as ImageView
             }
         } catch (e: NoSuchMethodException) {
+            BridgeClient.reportFailure("sticker_panel",e)
             Logger.e(this.itemName, e)
         }
     }

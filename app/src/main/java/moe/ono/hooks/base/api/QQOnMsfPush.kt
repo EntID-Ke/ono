@@ -1,5 +1,7 @@
 package moe.ono.hooks.base.api
 
+import io.github.qqmodulemanager.bridge.BridgeClient
+
 import com.google.protobuf.UnknownFieldSet
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XC_MethodHook.MethodHookParam
@@ -64,7 +66,12 @@ class QQOnMsfPush : ApiHookItem() {
             val protoBuf = param.args[1] as ByteArray
             when (cmd) {
                 "trpc.msg.register_proxy.RegisterProxy.InfoSyncPush" -> {
-                    handleInfoSyncPush(protoBuf, param)
+                    try {
+                        handleInfoSyncPush(protoBuf, param)
+                    } catch (t: Throwable) {
+                        BridgeClient.reportFailure(BridgeClient.RECALL, t)
+                        throw t
+                    }
                 }
                 "trpc.msg.olpush.OlPushService.MsgPush" -> {
                     handleMsgPush(protoBuf, param)
@@ -74,6 +81,8 @@ class QQOnMsfPush : ApiHookItem() {
     }
 
     private fun handleInfoSyncPush(buffer: ByteArray, param: MethodHookParam) {
+        if (!moe.ono.hooks._core.factory.HookItemFactory.getItem(
+                moe.ono.hooks.item.chat.HoldRevokeMsg::class.java).isEnabled) return
         val infoSyncPush = InfoSyncPushOuterClass.InfoSyncPush.parseFrom(buffer)
         infoSyncPush.syncRecallContent.syncInfoBodyList.forEach { syncInfoBody ->
             syncInfoBody.msgList.forEach { qqMessage ->
@@ -124,11 +133,21 @@ class QQOnMsfPush : ApiHookItem() {
             }
 
             732 -> when (msgSubType) {
-                17 -> HoldRevokeMessageCore.onGroupRecallByMsgPush(operationInfoByteArray, msgPush, param)
+                17 -> try {
+                    HoldRevokeMessageCore.onGroupRecallByMsgPush(operationInfoByteArray, msgPush, param)
+                } catch (t: Throwable) {
+                    BridgeClient.reportFailure(BridgeClient.RECALL, t)
+                    throw t
+                }
             }
 
             528 -> when (msgSubType) {
-                138 -> HoldRevokeMessageCore.onC2CRecallByMsgPush(operationInfoByteArray, msgPush, param)
+                138 -> try {
+                    HoldRevokeMessageCore.onC2CRecallByMsgPush(operationInfoByteArray, msgPush, param)
+                } catch (t: Throwable) {
+                    BridgeClient.reportFailure(BridgeClient.RECALL, t)
+                    throw t
+                }
             }
         }
     }
